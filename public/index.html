@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinic Inventory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-hospital-alt"></i>
+                    <h1>Clinic Inventory</h1>
+                </div>
+                <div class="header-actions">
+                    <div class="alerts-indicator" id="alertsIndicator">
+                        <i class="fas fa-bell"></i>
+                        <span class="alert-count" id="alertCount">0</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="nav-tabs">
+            <button class="tab-btn active" data-tab="dashboard">
+                <i class="fas fa-tachometer-alt"></i> Dashboard
+            </button>
+            <button class="tab-btn" data-tab="inventory">
+                <i class="fas fa-boxes"></i> Inventory
+            </button>
+            <button class="tab-btn" data-tab="alerts">
+                <i class="fas fa-exclamation-triangle"></i> Alerts
+            </button>
+            <button class="tab-btn" data-tab="restock">
+                <i class="fas fa-shopping-cart"></i> Restock
+            </button>
+            <button class="tab-btn" data-tab="usage">
+                <i class="fas fa-chart-line"></i> Usage
+            </button>
+            <button class="tab-btn" data-tab="scanner">
+                <i class="fas fa-qrcode"></i> Scanner
+            </button>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Tab -->
+            <div class="tab-content active" id="dashboard">
+                <div class="dashboard-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalItems">0</h3>
+                            <p>Total Items</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="lowStockCount">0</h3>
+                            <p>Low Stock Items</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon danger">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="expiringCount">0</h3>
+                            <p>Expiring Soon</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon success">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="purchaseOrderCount">0</h3>
+                            <p>Purchase Orders</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-sections">
+                    <div class="section">
+                        <h2>Recent Alerts</h2>
+                        <div id="recentAlerts" class="alerts-container">
+                            <p class="no-data">No alerts at the moment</p>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <h2>Quick Actions</h2>
+                        <div class="quick-actions">
+                            <button class="btn btn-primary" onclick="showAddItemModal()">
+                                <i class="fas fa-plus"></i> Add Item
+                            </button>
+                            <button class="btn btn-secondary" onclick="switchTab('usage')">
+                                <i class="fas fa-clipboard-list"></i> Record Usage
+                            </button>
+                            <button class="btn btn-info" onclick="switchTab('scanner')">
+                                <i class="fas fa-qrcode"></i> Scan Barcode
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventory Tab -->
+            <div class="tab-content" id="inventory">
+                <div class="section-header">
+                    <h2>Inventory Management</h2>
+                    <button class="btn btn-primary" onclick="showAddItemModal()">
+                        <i class="fas fa-plus"></i> Add New Item
+                    </button>
+                </div>
+
+                <div class="search-bar">
+                    <input type="text" id="searchInventory" placeholder="Search inventory items...">
+                    <i class="fas fa-search"></i>
+                </div>
+
+                <div class="table-container">
+                    <table class="inventory-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Current Stock</th>
+                                <th>Min Threshold</th>
+                                <th>Expiration Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="inventoryTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Alerts Tab -->
+            <div class="tab-content" id="alerts">
+                <div class="section-header">
+                    <h2>System Alerts</h2>
+                    <button class="btn btn-secondary" onclick="refreshAlerts()">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                </div>
+
+                <div id="alertsContainer" class="alerts-container">
+                </div>
+            </div>
+
+            <!-- Restock Tab -->
+            <div class="tab-content" id="restock">
+                <div class="section-header">
+                    <h2>Restock Suggestions</h2>
+                    <button class="btn btn-success" onclick="generatePurchaseOrder()">
+                        <i class="fas fa-file-invoice"></i> Generate Purchase Order
+                    </button>
+                </div>
+
+                <div id="restockSuggestions" class="restock-container">
+                </div>
+
+                <div class="section">
+                    <h3>Purchase Orders</h3>
+                    <div id="purchaseOrdersContainer" class="purchase-orders">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Usage Tab -->
+            <div class="tab-content" id="usage">
+                <div class="section-header">
+                    <h2>Usage Tracking</h2>
+                </div>
+
+                <div class="usage-form">
+                    <h3>Record Item Usage</h3>
+                    <form id="usageForm">
+                        <select id="usageItemSelect" required>
+                            <option value="">Select an item...</option>
+                        </select>
+                        <input type="number" id="usageQuantity" placeholder="Quantity used" min="1" required>
+                        <input type="text" id="usageNotes" placeholder="Notes (optional)">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Record Usage
+                        </button>
+                    </form>
+                </div>
+
+                <div class="section">
+                    <h3>Usage History</h3>
+                    <div id="usageHistory" class="usage-history">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scanner Tab -->
+            <div class="tab-content" id="scanner">
+                <div class="section-header">
+                    <h2>Barcode Scanner</h2>
+                </div>
+
+                <div class="scanner-container">
+                    <div class="scanner-input">
+                        <input type="text" id="barcodeInput" placeholder="Enter or scan barcode">
+                        <button class="btn btn-primary" onclick="scanBarcode()">
+                            <i class="fas fa-search"></i> Scan
+                        </button>
+                    </div>
+
+                    <div id="scanResult" class="scan-result">
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>Sample Barcodes</h3>
+                    <p class="help-text">Use these sample barcodes for testing:</p>
+                    <div class="sample-barcodes">
+                        <code onclick="document.getElementById('barcodeInput').value = this.textContent">12345</code>
+                        <code onclick="document.getElementById('barcodeInput').value = this.textContent">67890</code>
+                        <code onclick="document.getElementById('barcodeInput').value = this.textContent">11111</code>
+                        <code onclick="document.getElementById('barcodeInput').value = this.textContent">22222</code>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Item Modal -->
+    <div class="modal" id="addItemModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Item</h2>
+                <span class="close" onclick="closeAddItemModal()">&times;</span>
+            </div>
+            <form id="addItemForm">
+                <input type="hidden" id="editItemId">
+                
+                <div class="form-group">
+                    <label for="itemName">Item Name *</label>
+                    <input type="text" id="itemName" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="itemCategory">Category *</label>
+                        <select id="itemCategory" required>
+                            <option value="">Select category...</option>
+                            <option value="Medications">Medications</option>
+                            <option value="Medical Supplies">Medical Supplies</option>
+                            <option value="Personal Protective Equipment">Personal Protective Equipment</option>
+                            <option value="Disposables">Disposables</option>
+                            <option value="Equipment">Equipment</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="itemBarcode">Barcode</label>
+                        <input type="text" id="itemBarcode">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="currentStock">Current Stock *</label>
+                        <input type="number" id="currentStock" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="minThreshold">Minimum Threshold *</label>
+                        <input type="number" id="minThreshold" min="1" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="unitPrice">Unit Price ($)</label>
+                        <input type="number" id="unitPrice" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="supplier">Supplier</label>
+                        <input type="text" id="supplier">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="expirationDate">Expiration Date</label>
+                    <input type="date" id="expirationDate">
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" rows="3"></textarea>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeAddItemModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="submitButtonText">Add Item</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

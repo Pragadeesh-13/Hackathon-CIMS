@@ -1,0 +1,30 @@
+[
+  {
+    "id": "usage1",
+    "itemId": "sample1",
+    "quantity": 10,
+    "notes": "Patient treatment",
+    "date": "2025-08-05T10:30:00.000Z"
+  },
+  {
+    "id": "usage2",
+    "itemId": "sample2",
+    "quantity": 2,
+    "notes": "Surgery procedure",
+    "date": "2025-08-04T14:15:00.000Z"
+  },
+  {
+    "id": "usage3",
+    "itemId": "sample3",
+    "quantity": 5,
+    "notes": "Emergency care",
+    "date": "2025-08-03T09:45:00.000Z"
+  },
+  {
+    "id": "me1dwqbj7fm9xqxm01d",
+    "itemId": "sample1",
+    "quantity": 2,
+    "notes": "",
+    "date": "2025-08-07T12:39:51.103Z"
+  }
+]
