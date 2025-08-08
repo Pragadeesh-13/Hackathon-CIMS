@@ -1,18 +1,15 @@
 // API Base URL
 const API_BASE_URL = 'http://localhost:3000/api';
 
-// Authentication state
 let currentUser = null;
 let authToken = localStorage.getItem('authToken');
 
-// Global state
 let inventory = [];
 let alerts = [];
 let usageHistory = [];
 let restockSuggestions = [];
 let purchaseOrders = [];
 
-// DOM Elements
 const tabButtons = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
 const addItemModal = document.getElementById('addItemModal');
@@ -21,12 +18,10 @@ const usageForm = document.getElementById('usageForm');
 const chatForm = document.getElementById('chatForm');
 const loading = document.getElementById('loading');
 
-// Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     checkAuthentication();
 });
 
-// Authentication functions
 function checkAuthentication() {
     const token = localStorage.getItem('authToken');
     const userData = localStorage.getItem('userData');
@@ -39,7 +34,6 @@ function checkAuthentication() {
     try {
         currentUser = JSON.parse(userData);
         
-        // Check if user role is allowed
         if (!['pharmacist', 'admin'].includes(currentUser.role)) {
             localStorage.clear();
             redirectToAuth();
@@ -62,10 +56,9 @@ function redirectToAuth() {
 function updateHeaderWithUser() {
     const headerActions = document.querySelector('.header-actions');
     
-    // Check if user profile already exists to prevent duplicates
     const existingProfile = headerActions.querySelector('.user-profile');
     if (existingProfile) {
-        return; // Profile already exists, don't create another
+        return; 
     }
     
     const userProfile = document.createElement('div');
@@ -127,7 +120,6 @@ function logout() {
     }
 }
 
-// Close user menu when clicking outside
 document.addEventListener('click', function(e) {
     const userProfile = document.querySelector('.user-profile');
     const userMenu = document.getElementById('userMenu');
@@ -137,12 +129,10 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Initialize the application
 async function initializeApp() {
     try {
         showLoading();
         
-        // Load data with individual error handling
         const results = await Promise.allSettled([
             loadInventory(),
             loadAlerts(),
@@ -151,7 +141,6 @@ async function initializeApp() {
             loadPurchaseOrders()
         ]);
         
-        // Check for any failures
         const failures = results.filter(result => result.status === 'rejected');
         
         if (failures.length > 0) {
@@ -163,7 +152,6 @@ async function initializeApp() {
             showToast(`Failed to load ${failures.length} data source(s). Check console for details.`, 'warning');
         }
         
-        // Only update dashboard if there were no critical failures
         if (failures.length < results.length) {
             updateDashboard();
         }
@@ -176,9 +164,7 @@ async function initializeApp() {
     }
 }
 
-// Setup event listeners
 function setupEventListeners() {
-    // Tab navigation
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             const tabId = button.getAttribute('data-tab');
@@ -186,24 +172,19 @@ function setupEventListeners() {
         });
     });
 
-    // Add item form
     addItemForm.addEventListener('submit', handleAddItem);
     
-    // Usage form
     usageForm.addEventListener('submit', handleRecordUsage);
 
-    // Chat form
     if (chatForm) {
         chatForm.addEventListener('submit', handleChatMessage);
     }
 
-    // Search functionality
     const searchInput = document.getElementById('searchInventory');
     if (searchInput) {
         searchInput.addEventListener('input', handleSearch);
     }
 
-    // Barcode scanner
     const barcodeInput = document.getElementById('barcodeInput');
     if (barcodeInput) {
         barcodeInput.addEventListener('keypress', (e) => {
@@ -213,25 +194,21 @@ function setupEventListeners() {
         });
     }
 
-    // Alerts indicator
     const alertsIndicator = document.getElementById('alertsIndicator');
     if (alertsIndicator) {
         alertsIndicator.addEventListener('click', () => switchTab('alerts'));
     }
 }
 
-// API Functions
 async function apiCall(endpoint, options = {}) {
     try {
         console.log(`🔄 Making API call to: ${API_BASE_URL}${endpoint}`);
         
-        // Add authentication headers
         const headers = {
             'Content-Type': 'application/json',
             ...options.headers
         };
         
-        // Add auth token if available
         const token = localStorage.getItem('authToken');
         if (token) {
             headers['Authorization'] = `Bearer ${token}`;
@@ -243,7 +220,6 @@ async function apiCall(endpoint, options = {}) {
         });
 
         if (!response.ok) {
-            // Handle authentication errors
             if (response.status === 401) {
                 localStorage.clear();
                 redirectToAuth();
@@ -268,7 +244,6 @@ async function apiCall(endpoint, options = {}) {
     }
 }
 
-// Data loading functions
 async function loadInventory() {
     try {
         inventory = await apiCall('/inventory');
@@ -277,7 +252,7 @@ async function loadInventory() {
         console.log('✅ Inventory loaded successfully');
     } catch (error) {
         console.error('❌ Failed to load inventory:', error);
-        inventory = []; // Fallback to empty array
+        inventory = []; 
         throw error;
     }
 }
@@ -303,7 +278,7 @@ async function loadUsageHistory() {
         console.log('✅ Usage history loaded successfully');
     } catch (error) {
         console.error('❌ Failed to load usage history:', error);
-        usageHistory = []; // Fallback to empty array
+        usageHistory = []; 
         throw error;
     }
 }
@@ -315,7 +290,7 @@ async function loadRestockSuggestions() {
         console.log('✅ Restock suggestions loaded successfully');
     } catch (error) {
         console.error('❌ Failed to load restock suggestions:', error);
-        restockSuggestions = []; // Fallback to empty array
+        restockSuggestions = []; 
         throw error;
     }
 }
@@ -327,24 +302,23 @@ async function loadPurchaseOrders() {
         console.log('✅ Purchase orders loaded successfully');
     } catch (error) {
         console.error('❌ Failed to load purchase orders:', error);
-        purchaseOrders = []; // Fallback to empty array
+        purchaseOrders = []; 
         throw error;
     }
 }
 
-// Tab switching
+
 function switchTab(tabId) {
-    // Update tab buttons
+   
     tabButtons.forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
     });
 
-    // Update tab contents
+    
     tabContents.forEach(content => {
         content.classList.toggle('active', content.id === tabId);
     });
 
-    // Refresh data based on active tab
     switch(tabId) {
         case 'dashboard':
             updateDashboard();
@@ -362,7 +336,6 @@ function switchTab(tabId) {
     }
 }
 
-// Dashboard updates
 function updateDashboard() {
     const totalItems = inventory.length;
     const lowStockItems = inventory.filter(item => item.currentStock <= item.minThreshold).length;
@@ -371,7 +344,6 @@ function updateDashboard() {
     ).length;
     const successfulOrders = purchaseOrders.filter(order => order.status === 'successful').length;
 
-    // Check if elements exist before updating
     const totalItemsEl = document.getElementById('totalItems');
     const lowStockCountEl = document.getElementById('lowStockCount');
     const expiringCountEl = document.getElementById('expiringCount');
@@ -386,7 +358,6 @@ function updateDashboard() {
     renderRecentAlerts();
 }
 
-// Render functions
 function renderInventoryTable() {
     const tbody = document.getElementById('inventoryTableBody');
     if (!tbody) return;
@@ -555,7 +526,6 @@ function renderPurchaseOrders() {
     `).join('');
 }
 
-// Utility functions
 function getItemStatus(item) {
     if (item.expirationDate) {
         const daysUntilExpiry = Math.ceil((new Date(item.expirationDate) - new Date()) / (1000 * 60 * 60 * 24));
@@ -588,7 +558,6 @@ function formatDate(dateString) {
     return new Date(dateString).toLocaleDateString();
 }
 
-// Modal functions
 function showAddItemModal() {
     document.getElementById('modalTitle').textContent = 'Add New Item';
     document.getElementById('submitButtonText').textContent = 'Add Item';
@@ -601,7 +570,6 @@ function closeAddItemModal() {
     addItemModal.style.display = 'none';
 }
 
-// Event handlers
 async function handleAddItem(e) {
     e.preventDefault();
     
@@ -623,14 +591,12 @@ async function handleAddItem(e) {
         const editItemId = document.getElementById('editItemId').value;
 
         if (editItemId) {
-            // Update existing item
             await apiCall(`/inventory/${editItemId}`, {
                 method: 'PUT',
                 body: JSON.stringify(itemData)
             });
             showToast('Item updated successfully', 'success');
         } else {
-            // Add new item
             await apiCall('/inventory', {
                 method: 'POST',
                 body: JSON.stringify(itemData)
@@ -684,7 +650,6 @@ async function handleRecordUsage(e) {
     }
 }
 
-// Item management
 async function editItem(itemId) {
     const item = inventory.find(i => i.id === itemId);
     if (!item) return;
@@ -731,7 +696,6 @@ async function deleteItem(itemId) {
     }
 }
 
-// Search functionality
 function handleSearch(e) {
     const searchTerm = e.target.value.toLowerCase();
     const filteredInventory = inventory.filter(item => 
@@ -778,7 +742,6 @@ function renderFilteredInventory(filteredInventory) {
     }).join('');
 }
 
-// Barcode scanning
 async function scanBarcode() {
     const barcode = document.getElementById('barcodeInput').value.trim();
     const resultContainer = document.getElementById('scanResult');
@@ -829,19 +792,16 @@ function quickUsage(itemId) {
     document.getElementById('usageItemSelect').value = itemId;
 }
 
-// Restock functions
 async function generatePurchaseOrder() {
     if (restockSuggestions.length === 0) {
         showToast('No restock suggestions available', 'warning');
         return;
     }
 
-    // Show modal for item selection
     showPurchaseOrderModal();
 }
 
 function showPurchaseOrderModal() {
-    // Create modal HTML if it doesn't exist
     let modal = document.getElementById('purchaseOrderModal');
     if (!modal) {
         modal = document.createElement('div');
@@ -873,7 +833,6 @@ function showPurchaseOrderModal() {
         document.body.appendChild(modal);
     }
 
-    // Populate items
     const itemsContainer = modal.querySelector('#purchaseOrderItems');
     itemsContainer.innerHTML = restockSuggestions.map(suggestion => `
         <div class="purchase-item-row">
@@ -950,7 +909,6 @@ async function createPurchaseOrderFromModal() {
 
         showToast(successMessage, 'success');
         
-        // Refresh all relevant data after successful order
         await Promise.all([
             loadInventory(),
             loadPurchaseOrders(),
@@ -990,7 +948,6 @@ async function createSingleItemOrder(itemId, itemName, suggestedQuantity) {
 
         showToast(`✅ Purchase order placed successfully for ${itemName} (${suggestedQuantity} units)! Inventory updated.`, 'success');
         
-        // Refresh all relevant data after successful order
         await Promise.all([
             loadInventory(),
             loadPurchaseOrders(),
@@ -1006,7 +963,6 @@ async function createSingleItemOrder(itemId, itemName, suggestedQuantity) {
     }
 }
 
-// Utility functions
 function populateUsageItemSelect() {
     const select = document.getElementById('usageItemSelect');
     if (!select) return;
@@ -1037,7 +993,6 @@ async function refreshAlerts() {
     }
 }
 
-// UI utility functions
 function showLoading() {
     loading.style.display = 'flex';
 }
@@ -1065,13 +1020,11 @@ function showToast(message, type = 'info') {
 
     toastContainer.appendChild(toast);
 
-    // Remove toast after 3 seconds
     setTimeout(() => {
         toast.remove();
     }, 3000);
 }
 
-// Close modal when clicking outside
 window.onclick = function(event) {
     if (event.target === addItemModal) {
         closeAddItemModal();
@@ -1080,10 +1033,8 @@ window.onclick = function(event) {
 
 
 
-// Helper function to convert markdown to HTML
 function formatMarkdownToHTML(text) {
     let html = text
-        // Convert **bold** to <strong>
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         // Convert *italic* (but not bullet points) to <em>
         .replace(/(?<!^|\n)\*(.*?)\*/g, '<em>$1</em>')
@@ -1094,12 +1045,10 @@ function formatMarkdownToHTML(text) {
         // Convert line breaks to <br>
         .replace(/\n/g, '<br>');
     
-    // Handle bullet points - convert * items to <li> and wrap in <ul>
     html = html.replace(/(?:^|\<br\>)\* (.+?)(?=\<br\>(?!\* )|$)/g, function(match, content) {
         return '<li>' + content + '</li>';
     });
     
-    // Wrap consecutive <li> items in <ul>
     html = html.replace(/(<li>.*?<\/li>)(\<br\><li>.*?<\/li>)*/g, function(match) {
         const items = match.replace(/\<br\>/g, '');
         return '<ul>' + items + '</ul>';
@@ -1108,8 +1057,7 @@ function formatMarkdownToHTML(text) {
     return html;
 }
 
-// Generate restock chart with AI insights
-let restockChart = null; // Global variable to store chart instance
+let restockChart = null; 
 
 async function generateRestockChart() {
     try {
@@ -1120,15 +1068,12 @@ async function generateRestockChart() {
         const canvas = document.getElementById('restockChart');
         const insightsText = document.getElementById('aiInsightsText');
         
-        // Show chart container
         chartContainer.style.display = 'block';
         
-        // Destroy existing chart if it exists
         if (restockChart) {
             restockChart.destroy();
         }
         
-        // Create new chart
         const ctx = canvas.getContext('2d');
         restockChart = new Chart(ctx, {
             type: 'bar',
@@ -1176,7 +1121,6 @@ async function generateRestockChart() {
             }
         });
         
-        // Update AI insights with markdown formatting
         insightsText.innerHTML = formatMarkdownToHTML(response.aiInsights);
         
         hideLoading();
@@ -1189,7 +1133,6 @@ async function generateRestockChart() {
     }
 }
 
-// Global functions for HTML onclick events
 window.showAddItemModal = showAddItemModal;
 window.closeAddItemModal = closeAddItemModal;
 window.editItem = editItem;
@@ -1206,7 +1149,6 @@ window.clearChat = clearChat;
 window.sendQuickQuestion = sendQuickQuestion;
 window.generateRestockChart = generateRestockChart;
 
-// Chatbot functionality
 async function handleChatMessage(e) {
     e.preventDefault();
     
@@ -1215,17 +1157,13 @@ async function handleChatMessage(e) {
     
     if (!message) return;
     
-    // Clear input
     chatInput.value = '';
     
-    // Add user message to chat
     addMessageToChat(message, 'user');
     
-    // Show typing indicator
     showTypingIndicator();
     
     try {
-        // Send message to chatbot (backend will fetch current data)
         const response = await apiCall('/chat', {
             method: 'POST',
             body: JSON.stringify({ 
@@ -1233,10 +1171,8 @@ async function handleChatMessage(e) {
             })
         });
         
-        // Remove typing indicator
         hideTypingIndicator();
         
-        // Add bot response to chat
         addMessageToChat(response.reply, 'bot');
         
     } catch (error) {
@@ -1258,7 +1194,6 @@ function addMessageToChat(message, sender) {
     const content = document.createElement('div');
     content.className = 'message-content';
     
-    // Convert markdown-like formatting to HTML
     const formattedMessage = formatChatMessage(message);
     content.innerHTML = formattedMessage;
     
@@ -1267,14 +1202,11 @@ function addMessageToChat(message, sender) {
     
     chatMessages.appendChild(messageDiv);
     
-    // Scroll to bottom
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
 function formatChatMessage(message) {
-    // Enhanced markdown-like formatting for better display
     return message
-        // Bold text with **text** or __text__
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/__(.*?)__/g, '<strong>$1</strong>')
         // Italic text with *text* or _text_
@@ -1331,7 +1263,6 @@ function sendQuickQuestion(question) {
     const chatInput = document.getElementById('chatInput');
     chatInput.value = question;
     
-    // Trigger the chat form submission
     const event = new Event('submit', { bubbles: true, cancelable: true });
     chatForm.dispatchEvent(event);
 }
@@ -1358,14 +1289,12 @@ function clearChat() {
     `;
 }
 
-// Automated Restock Functions
 async function showAutomatedRestockModal() {
     console.log('🔧 showAutomatedRestockModal called');
     try {
         showLoading();
         
         console.log('📡 Calling automated-restock-preview API...');
-        // Get preview of what would be restocked
         const preview = await apiCall('/automated-restock-preview');
         
         console.log('📊 Preview data received:', preview);
@@ -1376,7 +1305,6 @@ async function showAutomatedRestockModal() {
             return;
         }
         
-        // Create modal if it doesn't exist
         let modal = document.getElementById('automatedRestockModal');
         if (!modal) {
             modal = document.createElement('div');
@@ -1417,7 +1345,6 @@ async function showAutomatedRestockModal() {
             document.body.appendChild(modal);
         }
         
-        // Populate items list
         const itemsContainer = modal.querySelector('#automatedRestockItems');
         itemsContainer.innerHTML = preview.items.map(item => `
             <div class="restock-item">
@@ -1442,7 +1369,6 @@ async function showAutomatedRestockModal() {
             </div>
         `).join('');
         
-        // Store preview data for execution
         window.automatedRestockPreview = preview;
         
         modal.style.display = 'block';
@@ -1488,7 +1414,6 @@ async function executeAutomatedRestock() {
             
             showToast(successMessage, 'success');
             
-            // Refresh all relevant data
             await Promise.all([
                 loadInventory(),
                 loadPurchaseOrders(),
@@ -1509,7 +1434,6 @@ async function executeAutomatedRestock() {
     }
 }
 
-// Make functions available globally
 window.showAutomatedRestockModal = showAutomatedRestockModal;
 window.closeAutomatedRestockModal = closeAutomatedRestockModal;
 window.executeAutomatedRestock = executeAutomatedRestock;
