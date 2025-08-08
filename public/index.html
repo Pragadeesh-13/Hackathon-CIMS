@@ -4,8 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clinic Inventory Management System</title>
+    <!-- Google Fonts - Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -44,6 +49,9 @@
             </button>
             <button class="tab-btn" data-tab="scanner">
                 <i class="fas fa-qrcode"></i> Scanner
+            </button>
+            <button class="tab-btn" data-tab="chatbot">
+                <i class="fas fa-robot"></i> AI Assistant
             </button>
         </nav>
 
@@ -110,6 +118,9 @@
                             <button class="btn btn-info" onclick="switchTab('scanner')">
                                 <i class="fas fa-qrcode"></i> Scan Barcode
                             </button>
+                            <button class="btn btn-warning" onclick="showAutomatedRestockModal()">
+                                <i class="fas fa-magic"></i> Auto Restock (High Priority)
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -165,9 +176,26 @@
             <div class="tab-content" id="restock">
                 <div class="section-header">
                     <h2>Restock Suggestions</h2>
-                    <button class="btn btn-success" onclick="generatePurchaseOrder()">
-                        <i class="fas fa-file-invoice"></i> Generate Purchase Order
-                    </button>
+                    <div class="header-actions">
+                        <button class="btn btn-info" onclick="generateRestockChart()">
+                            <i class="fas fa-chart-bar"></i> Generate AI Chart
+                        </button>
+                        <button class="btn btn-success" onclick="generatePurchaseOrder()">
+                            <i class="fas fa-file-invoice"></i> Generate Purchase Order
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bar Chart Section -->
+                <div class="section">
+                    <h3>Restock Analysis Chart</h3>
+                    <div class="chart-container" style="display: none;" id="restockChartContainer">
+                        <canvas id="restockChart"></canvas>
+                        <div class="chart-insights" id="chartInsights">
+                            <h4>AI Insights</h4>
+                            <div id="aiInsightsText">Click "Generate AI Chart" to get AI-powered insights about your restock needs.</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="restockSuggestions" class="restock-container">
@@ -233,6 +261,61 @@
                         <code onclick="document.getElementById('barcodeInput').value = this.textContent">67890</code>
                         <code onclick="document.getElementById('barcodeInput').value = this.textContent">11111</code>
                         <code onclick="document.getElementById('barcodeInput').value = this.textContent">22222</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chatbot Tab -->
+            <div class="tab-content" id="chatbot">
+                <div class="section-header">
+                    <h2>AI Healthcare Assistant</h2>
+                    <button class="btn btn-secondary" onclick="clearChat()">
+                        <i class="fas fa-trash"></i> Clear Chat
+                    </button>
+                </div>
+
+                <div class="chatbot-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="chat-message bot-message">
+                            <div class="message-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="message-content">
+                                <p><strong>Hello! I'm your AI healthcare inventory assistant.</strong></p>
+                                <p>I provide quick, actionable advice about your clinic's inventory. Ask me about:</p>
+                                <ul>
+                                    <li>Current stock levels & alerts</li>
+                                    <li>Reorder recommendations</li>
+                                    <li>Usage patterns & optimization</li>
+                                    <li>Specific item guidance</li>
+                                </ul>
+                                <p>💡 <em>I'll keep my answers short and focused on immediate actions.</em></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-container">
+                        <div class="quick-questions">
+                            <button class="quick-question-btn" onclick="sendQuickQuestion('Analyze my current inventory and tell me what needs immediate attention')">
+                                Analyze Current Inventory
+                            </button>
+                            <button class="quick-question-btn" onclick="sendQuickQuestion('What should I do about my low stock and out of stock items?')">
+                                Low Stock Action Plan
+                            </button>
+                            <button class="quick-question-btn" onclick="sendQuickQuestion('Review my usage history and suggest optimization strategies')">
+                                Usage Pattern Analysis
+                            </button>
+                            <button class="quick-question-btn" onclick="sendQuickQuestion('Which items should I reorder first and in what quantities?')">
+                                Reorder Priorities
+                            </button>
+                        </div>
+                        
+                        <form id="chatForm" class="chat-input-form">
+                            <input type="text" id="chatInput" placeholder="Ask me about inventory management, medications, or clinic operations..." required>
+                            <button type="submit" class="chat-send-btn" id="sendBtn">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>

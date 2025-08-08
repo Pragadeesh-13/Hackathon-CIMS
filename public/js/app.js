@@ -1,6 +1,10 @@
 // API Base URL
 const API_BASE_URL = 'http://localhost:3000/api';
 
+// Authentication state
+let currentUser = null;
+let authToken = localStorage.getItem('authToken');
+
 // Global state
 let inventory = [];
 let alerts = [];
@@ -14,26 +18,156 @@ const tabContents = document.querySelectorAll('.tab-content');
 const addItemModal = document.getElementById('addItemModal');
 const addItemForm = document.getElementById('addItemForm');
 const usageForm = document.getElementById('usageForm');
+const chatForm = document.getElementById('chatForm');
 const loading = document.getElementById('loading');
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    initializeApp();
-    setupEventListeners();
+    checkAuthentication();
+});
+
+// Authentication functions
+function checkAuthentication() {
+    const token = localStorage.getItem('authToken');
+    const userData = localStorage.getItem('userData');
+    
+    if (!token || !userData) {
+        redirectToAuth();
+        return;
+    }
+    
+    try {
+        currentUser = JSON.parse(userData);
+        
+        // Check if user role is allowed
+        if (!['pharmacist', 'admin'].includes(currentUser.role)) {
+            localStorage.clear();
+            redirectToAuth();
+            return;
+        }
+        
+        updateHeaderWithUser();
+        initializeApp();
+        setupEventListeners();
+    } catch (error) {
+        console.error('Authentication error:', error);
+        redirectToAuth();
+    }
+}
+
+function redirectToAuth() {
+    window.location.href = '/auth.html';
+}
+
+function updateHeaderWithUser() {
+    const headerActions = document.querySelector('.header-actions');
+    
+    // Check if user profile already exists to prevent duplicates
+    const existingProfile = headerActions.querySelector('.user-profile');
+    if (existingProfile) {
+        return; // Profile already exists, don't create another
+    }
+    
+    const userProfile = document.createElement('div');
+    userProfile.className = 'user-profile';
+    
+    userProfile.innerHTML = `
+        <div class="user-info" onclick="toggleUserMenu()">
+            <div class="user-avatar">
+                <i class="fas fa-user-circle"></i>
+            </div>
+            <div class="user-details">
+                <div class="user-name">${currentUser.firstName} ${currentUser.lastName}</div>
+                <div class="user-role">${currentUser.role}</div>
+            </div>
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="user-menu" id="userMenu">
+            <div class="user-menu-header">
+                <strong>${currentUser.firstName} ${currentUser.lastName}</strong>
+                <small>${currentUser.email}</small>
+            </div>
+            <hr>
+            <button class="user-menu-item" onclick="viewProfile()">
+                <i class="fas fa-user"></i> View Profile
+            </button>
+            <button class="user-menu-item" onclick="changePassword()">
+                <i class="fas fa-key"></i> Change Password
+            </button>
+            <hr>
+            <button class="user-menu-item logout" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
+    `;
+    
+    headerActions.appendChild(userProfile);
+}
+
+function toggleUserMenu() {
+    const userMenu = document.getElementById('userMenu');
+    userMenu.style.display = userMenu.style.display === 'block' ? 'none' : 'block';
+}
+
+function viewProfile() {
+    showToast('Profile management coming soon!', 'info');
+    toggleUserMenu();
+}
+
+function changePassword() {
+    showToast('Password change coming soon!', 'info');
+    toggleUserMenu();
+}
+
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        redirectToAuth();
+    }
+}
+
+// Close user menu when clicking outside
+document.addEventListener('click', function(e) {
+    const userProfile = document.querySelector('.user-profile');
+    const userMenu = document.getElementById('userMenu');
+    
+    if (userProfile && userMenu && !userProfile.contains(e.target)) {
+        userMenu.style.display = 'none';
+    }
 });
 
 // Initialize the application
 async function initializeApp() {
     try {
         showLoading();
-        await Promise.all([
+        
+        // Load data with individual error handling
+        const results = await Promise.allSettled([
             loadInventory(),
             loadAlerts(),
             loadUsageHistory(),
             loadRestockSuggestions(),
             loadPurchaseOrders()
         ]);
-        updateDashboard();
+        
+        // Check for any failures
+        const failures = results.filter(result => result.status === 'rejected');
+        
+        if (failures.length > 0) {
+            console.error('Some data failed to load:', failures);
+            failures.forEach((failure, index) => {
+                const endpoints = ['inventory', 'alerts', 'usage-history', 'restock-suggestions', 'purchase-orders'];
+                console.error(`Failed to load ${endpoints[index]}:`, failure.reason);
+            });
+            showToast(`Failed to load ${failures.length} data source(s). Check console for details.`, 'warning');
+        }
+        
+        // Only update dashboard if there were no critical failures
+        if (failures.length < results.length) {
+            updateDashboard();
+        }
+        
         hideLoading();
     } catch (error) {
         console.error('Failed to initialize app:', error);
@@ -57,6 +191,11 @@ function setupEventListeners() {
     
     // Usage form
     usageForm.addEventListener('submit', handleRecordUsage);
+
+    // Chat form
+    if (chatForm) {
+        chatForm.addEventListener('submit', handleChatMessage);
+    }
 
     // Search functionality
     const searchInput = document.getElementById('searchInventory');
@@ -84,51 +223,113 @@ function setupEventListeners() {
 // API Functions
 async function apiCall(endpoint, options = {}) {
     try {
+        console.log(`🔄 Making API call to: ${API_BASE_URL}${endpoint}`);
+        
+        // Add authentication headers
+        const headers = {
+            'Content-Type': 'application/json',
+            ...options.headers
+        };
+        
+        // Add auth token if available
+        const token = localStorage.getItem('authToken');
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers
-            },
+            headers,
             ...options
         });
 
         if (!response.ok) {
-            throw new Error(`API Error: ${response.statusText}`);
+            // Handle authentication errors
+            if (response.status === 401) {
+                localStorage.clear();
+                redirectToAuth();
+                return;
+            }
+            
+            const errorText = await response.text();
+            console.error(`❌ API Error ${response.status}: ${response.statusText}`, errorText);
+            throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorText}`);
         }
 
-        return await response.json();
+        const data = await response.json();
+        console.log(`✅ API call successful: ${endpoint}`, data.length ? `(${data.length} items)` : '');
+        return data;
     } catch (error) {
-        console.error('API call failed:', error);
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            console.error('❌ Network error - is the server running?', error);
+            throw new Error('Network error: Unable to connect to server. Please ensure the server is running on http://localhost:3000');
+        }
+        console.error(`❌ API call failed for ${endpoint}:`, error);
         throw error;
     }
 }
 
 // Data loading functions
 async function loadInventory() {
-    inventory = await apiCall('/inventory');
-    renderInventoryTable();
-    populateUsageItemSelect();
+    try {
+        inventory = await apiCall('/inventory');
+        renderInventoryTable();
+        populateUsageItemSelect();
+        console.log('✅ Inventory loaded successfully');
+    } catch (error) {
+        console.error('❌ Failed to load inventory:', error);
+        inventory = []; // Fallback to empty array
+        throw error;
+    }
 }
 
 async function loadAlerts() {
-    alerts = await apiCall('/alerts');
-    renderAlerts();
-    updateAlertsIndicator();
+    try {
+        alerts = await apiCall('/alerts');
+        renderAlerts();
+        renderRecentAlerts();
+        updateAlertsIndicator();
+        console.log('✅ Alerts loaded successfully');
+    } catch (error) {
+        console.error('❌ Failed to load alerts:', error);
+        alerts = []; // Fallback to empty array
+        throw error;
+    }
 }
 
 async function loadUsageHistory() {
-    usageHistory = await apiCall('/usage-history');
-    renderUsageHistory();
+    try {
+        usageHistory = await apiCall('/usage-history');
+        renderUsageHistory();
+        console.log('✅ Usage history loaded successfully');
+    } catch (error) {
+        console.error('❌ Failed to load usage history:', error);
+        usageHistory = []; // Fallback to empty array
+        throw error;
+    }
 }
 
 async function loadRestockSuggestions() {
-    restockSuggestions = await apiCall('/restock-suggestions');
-    renderRestockSuggestions();
+    try {
+        restockSuggestions = await apiCall('/restock-suggestions');
+        renderRestockSuggestions();
+        console.log('✅ Restock suggestions loaded successfully');
+    } catch (error) {
+        console.error('❌ Failed to load restock suggestions:', error);
+        restockSuggestions = []; // Fallback to empty array
+        throw error;
+    }
 }
 
 async function loadPurchaseOrders() {
-    purchaseOrders = await apiCall('/purchase-orders');
-    renderPurchaseOrders();
+    try {
+        purchaseOrders = await apiCall('/purchase-orders');
+        renderPurchaseOrders();
+        console.log('✅ Purchase orders loaded successfully');
+    } catch (error) {
+        console.error('❌ Failed to load purchase orders:', error);
+        purchaseOrders = []; // Fallback to empty array
+        throw error;
+    }
 }
 
 // Tab switching
@@ -165,17 +366,23 @@ function switchTab(tabId) {
 function updateDashboard() {
     const totalItems = inventory.length;
     const lowStockItems = inventory.filter(item => item.currentStock <= item.minThreshold).length;
-    const expiringItems = inventory.filter(item => {
-        if (!item.expirationDate) return false;
-        const daysUntilExpiry = Math.ceil((new Date(item.expirationDate) - new Date()) / (1000 * 60 * 60 * 24));
-        return daysUntilExpiry <= 7;
-    }).length;
+    const expiredItems = inventory.filter(item => 
+        item.expirationDate && new Date(item.expirationDate) < new Date()
+    ).length;
+    const successfulOrders = purchaseOrders.filter(order => order.status === 'successful').length;
 
-    document.getElementById('totalItems').textContent = totalItems;
-    document.getElementById('lowStockCount').textContent = lowStockItems;
-    document.getElementById('expiringCount').textContent = expiringItems;
-    document.getElementById('purchaseOrderCount').textContent = purchaseOrders.length;
+    // Check if elements exist before updating
+    const totalItemsEl = document.getElementById('totalItems');
+    const lowStockCountEl = document.getElementById('lowStockCount');
+    const expiringCountEl = document.getElementById('expiringCount');
+    const purchaseOrderCountEl = document.getElementById('purchaseOrderCount');
 
+    if (totalItemsEl) totalItemsEl.textContent = totalItems;
+    if (lowStockCountEl) lowStockCountEl.textContent = lowStockItems;
+    if (expiringCountEl) expiringCountEl.textContent = expiredItems;
+    if (purchaseOrderCountEl) purchaseOrderCountEl.textContent = successfulOrders;
+
+    updateAlertsIndicator();
     renderRecentAlerts();
 }
 
@@ -299,9 +506,14 @@ function renderRestockSuggestions() {
             </div>
             <div class="restock-details">
                 <div><strong>Current Stock:</strong> ${suggestion.currentStock}</div>
-                <div><strong>Usage Rate:</strong> ${suggestion.usageRate}/day</div>
-                <div><strong>Days Until Empty:</strong> ${suggestion.daysUntilEmpty === Infinity ? 'N/A' : suggestion.daysUntilEmpty}</div>
+                <div><strong>Selling Rate:</strong> ${suggestion.usageRate}/day</div>
+                <div><strong>Days Until Empty:</strong> ${suggestion.daysUntilEmpty === null ? 'N/A' : suggestion.daysUntilEmpty}</div>
                 <div><strong>Suggested Quantity:</strong> ${suggestion.suggestedQuantity}</div>
+            </div>
+            <div class="restock-actions">
+                <button class="btn btn-primary btn-sm" onclick="createSingleItemOrder('${suggestion.itemId}', '${suggestion.itemName}', ${suggestion.suggestedQuantity})">
+                    <i class="fas fa-shopping-cart"></i> Order This Item
+                </button>
             </div>
         </div>
     `).join('');
@@ -320,11 +532,14 @@ function renderPurchaseOrders() {
         <div class="purchase-order">
             <div class="order-header">
                 <span class="order-id">Order #${order.id}</span>
-                <span class="order-status">${order.status}</span>
+                <span class="order-status status-${order.status}">${order.status.charAt(0).toUpperCase() + order.status.slice(1)}</span>
             </div>
             <div><strong>Supplier:</strong> ${order.supplier || 'N/A'}</div>
             <div><strong>Date:</strong> ${formatDate(order.createdAt)}</div>
             <div><strong>Total Items:</strong> ${order.items ? order.items.length : 0}</div>
+            ${order.updatedAt && order.updatedAt !== order.createdAt ? 
+                `<div><strong>Last Updated:</strong> ${formatDate(order.updatedAt)}</div>` : ''
+            }
             ${order.items ? `
                 <div class="order-items">
                     <strong>Items:</strong>
@@ -621,31 +836,168 @@ async function generatePurchaseOrder() {
         return;
     }
 
+    // Show modal for item selection
+    showPurchaseOrderModal();
+}
+
+function showPurchaseOrderModal() {
+    // Create modal HTML if it doesn't exist
+    let modal = document.getElementById('purchaseOrderModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'purchaseOrderModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Create Purchase Order</h2>
+                    <span class="close" onclick="closePurchaseOrderModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="supplierName">Supplier Name:</label>
+                        <input type="text" id="supplierName" placeholder="Enter supplier name" value="Default Supplier">
+                    </div>
+                    <div class="form-group">
+                        <label>Select Items to Order:</label>
+                        <div id="purchaseOrderItems" class="purchase-order-items">
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" onclick="closePurchaseOrderModal()">Cancel</button>
+                        <button class="btn btn-success" onclick="createPurchaseOrderFromModal()">Create Order</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    // Populate items
+    const itemsContainer = modal.querySelector('#purchaseOrderItems');
+    itemsContainer.innerHTML = restockSuggestions.map(suggestion => `
+        <div class="purchase-item-row">
+            <input type="checkbox" id="item_${suggestion.itemId}" value="${suggestion.itemId}" 
+                   ${suggestion.priority === 'high' ? 'checked' : ''}>
+            <label for="item_${suggestion.itemId}" class="item-label">
+                <span class="item-name">${suggestion.itemName}</span>
+                <span class="item-priority priority-${suggestion.priority}">${suggestion.priority.toUpperCase()}</span>
+            </label>
+            <input type="number" class="quantity-input" id="qty_${suggestion.itemId}" 
+                   value="${suggestion.suggestedQuantity}" min="1" placeholder="Quantity">
+        </div>
+    `).join('');
+
+    modal.style.display = 'block';
+}
+
+function closePurchaseOrderModal() {
+    const modal = document.getElementById('purchaseOrderModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function createPurchaseOrderFromModal() {
+    const supplierName = document.getElementById('supplierName').value.trim();
+    
+    if (!supplierName) {
+        showToast('Please enter a supplier name', 'warning');
+        return;
+    }
+
+    const selectedItems = [];
+    const checkboxes = document.querySelectorAll('#purchaseOrderItems input[type="checkbox"]:checked');
+    
+    checkboxes.forEach(checkbox => {
+        const itemId = checkbox.value;
+        const quantityInput = document.getElementById(`qty_${itemId}`);
+        const quantity = parseInt(quantityInput.value) || 0;
+        
+        if (quantity > 0) {
+            const suggestion = restockSuggestions.find(s => s.itemId === itemId);
+            if (suggestion) {
+                selectedItems.push({
+                    name: suggestion.itemName,
+                    quantity: quantity,
+                    itemId: itemId
+                });
+            }
+        }
+    });
+
+    if (selectedItems.length === 0) {
+        showToast('Please select at least one item with quantity > 0', 'warning');
+        return;
+    }
+
     try {
         showLoading();
 
         const orderData = {
-            supplier: 'Default Supplier',
-            items: restockSuggestions.filter(s => s.priority === 'high').map(s => ({
-                name: s.itemName,
-                quantity: s.suggestedQuantity,
-                itemId: s.itemId
-            }))
+            supplier: supplierName,
+            items: selectedItems
         };
-
-        if (orderData.items.length === 0) {
-            showToast('No high priority items to order', 'info');
-            hideLoading();
-            return;
-        }
 
         await apiCall('/purchase-orders', {
             method: 'POST',
             body: JSON.stringify(orderData)
         });
 
-        showToast('Purchase order created successfully', 'success');
-        await loadPurchaseOrders();
+        const successMessage = orderData.items.length === 1 
+            ? `✅ Purchase order placed successfully for ${orderData.items[0].name} (${orderData.items[0].quantity} units)! Inventory updated.`
+            : `✅ Purchase order placed successfully for ${orderData.items.length} items! Inventory updated.`;
+
+        showToast(successMessage, 'success');
+        
+        // Refresh all relevant data after successful order
+        await Promise.all([
+            loadInventory(),
+            loadPurchaseOrders(),
+            loadRestockSuggestions(),
+            loadAlerts()
+        ]);
+        
+        closePurchaseOrderModal();
+        hideLoading();
+    } catch (error) {
+        console.error('Failed to create purchase order:', error);
+        showToast('Failed to create purchase order', 'error');
+        hideLoading();
+    }
+}
+
+async function createSingleItemOrder(itemId, itemName, suggestedQuantity) {
+    const confirmation = confirm(`Create purchase order for ${itemName} (${suggestedQuantity} units)?`);
+    if (!confirmation) return;
+
+    try {
+        showLoading();
+
+        const orderData = {
+            supplier: 'Default Supplier',
+            items: [{
+                name: itemName,
+                quantity: suggestedQuantity,
+                itemId: itemId
+            }]
+        };
+
+        await apiCall('/purchase-orders', {
+            method: 'POST',
+            body: JSON.stringify(orderData)
+        });
+
+        showToast(`✅ Purchase order placed successfully for ${itemName} (${suggestedQuantity} units)! Inventory updated.`, 'success');
+        
+        // Refresh all relevant data after successful order
+        await Promise.all([
+            loadInventory(),
+            loadPurchaseOrders(),
+            loadRestockSuggestions(),
+            loadAlerts()
+        ]);
+        
         hideLoading();
     } catch (error) {
         console.error('Failed to create purchase order:', error);
@@ -726,6 +1078,117 @@ window.onclick = function(event) {
     }
 };
 
+
+
+// Helper function to convert markdown to HTML
+function formatMarkdownToHTML(text) {
+    let html = text
+        // Convert **bold** to <strong>
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        // Convert *italic* (but not bullet points) to <em>
+        .replace(/(?<!^|\n)\*(.*?)\*/g, '<em>$1</em>')
+        // Convert ## headers to h4
+        .replace(/^## (.*$)/gim, '<h4>$1</h4>')
+        // Convert ### headers to h5
+        .replace(/^### (.*$)/gim, '<h5>$1</h5>')
+        // Convert line breaks to <br>
+        .replace(/\n/g, '<br>');
+    
+    // Handle bullet points - convert * items to <li> and wrap in <ul>
+    html = html.replace(/(?:^|\<br\>)\* (.+?)(?=\<br\>(?!\* )|$)/g, function(match, content) {
+        return '<li>' + content + '</li>';
+    });
+    
+    // Wrap consecutive <li> items in <ul>
+    html = html.replace(/(<li>.*?<\/li>)(\<br\><li>.*?<\/li>)*/g, function(match) {
+        const items = match.replace(/\<br\>/g, '');
+        return '<ul>' + items + '</ul>';
+    });
+    
+    return html;
+}
+
+// Generate restock chart with AI insights
+let restockChart = null; // Global variable to store chart instance
+
+async function generateRestockChart() {
+    try {
+        showLoading();
+        
+        const response = await apiCall('/restock-chart');
+        const chartContainer = document.getElementById('restockChartContainer');
+        const canvas = document.getElementById('restockChart');
+        const insightsText = document.getElementById('aiInsightsText');
+        
+        // Show chart container
+        chartContainer.style.display = 'block';
+        
+        // Destroy existing chart if it exists
+        if (restockChart) {
+            restockChart.destroy();
+        }
+        
+        // Create new chart
+        const ctx = canvas.getContext('2d');
+        restockChart = new Chart(ctx, {
+            type: 'bar',
+            data: response.chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Restock Analysis: Current Stock vs Suggested Quantity',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Quantity'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Items'
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            minRotation: 45
+                        }
+                    }
+                },
+                animation: {
+                    duration: 1000,
+                    easing: 'easeOutQuart'
+                }
+            }
+        });
+        
+        // Update AI insights with markdown formatting
+        insightsText.innerHTML = formatMarkdownToHTML(response.aiInsights);
+        
+        hideLoading();
+        showToast('Restock chart generated successfully!', 'success');
+        
+    } catch (error) {
+        console.error('Failed to generate restock chart:', error);
+        hideLoading();
+        showToast('Failed to generate restock chart', 'error');
+    }
+}
+
 // Global functions for HTML onclick events
 window.showAddItemModal = showAddItemModal;
 window.closeAddItemModal = closeAddItemModal;
@@ -735,4 +1198,318 @@ window.scanBarcode = scanBarcode;
 window.quickUsage = quickUsage;
 window.switchTab = switchTab;
 window.generatePurchaseOrder = generatePurchaseOrder;
+window.createSingleItemOrder = createSingleItemOrder;
+window.closePurchaseOrderModal = closePurchaseOrderModal;
+window.createPurchaseOrderFromModal = createPurchaseOrderFromModal;
 window.refreshAlerts = refreshAlerts;
+window.clearChat = clearChat;
+window.sendQuickQuestion = sendQuickQuestion;
+window.generateRestockChart = generateRestockChart;
+
+// Chatbot functionality
+async function handleChatMessage(e) {
+    e.preventDefault();
+    
+    const chatInput = document.getElementById('chatInput');
+    const message = chatInput.value.trim();
+    
+    if (!message) return;
+    
+    // Clear input
+    chatInput.value = '';
+    
+    // Add user message to chat
+    addMessageToChat(message, 'user');
+    
+    // Show typing indicator
+    showTypingIndicator();
+    
+    try {
+        // Send message to chatbot (backend will fetch current data)
+        const response = await apiCall('/chat', {
+            method: 'POST',
+            body: JSON.stringify({ 
+                message: message
+            })
+        });
+        
+        // Remove typing indicator
+        hideTypingIndicator();
+        
+        // Add bot response to chat
+        addMessageToChat(response.reply, 'bot');
+        
+    } catch (error) {
+        console.error('Chat error:', error);
+        hideTypingIndicator();
+        addMessageToChat('I apologize, but I\'m experiencing technical difficulties. Please try again later.', 'bot');
+    }
+}
+
+function addMessageToChat(message, sender) {
+    const chatMessages = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}-message`;
+    
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.innerHTML = sender === 'bot' ? '<i class="fas fa-robot"></i>' : '<i class="fas fa-user"></i>';
+    
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    
+    // Convert markdown-like formatting to HTML
+    const formattedMessage = formatChatMessage(message);
+    content.innerHTML = formattedMessage;
+    
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(content);
+    
+    chatMessages.appendChild(messageDiv);
+    
+    // Scroll to bottom
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function formatChatMessage(message) {
+    // Enhanced markdown-like formatting for better display
+    return message
+        // Bold text with **text** or __text__
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/__(.*?)__/g, '<strong>$1</strong>')
+        // Italic text with *text* or _text_
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/_(.*?)_/g, '<em>$1</em>')
+        // Headers with ## or ###
+        .replace(/^### (.*$)/gm, '<h4>$1</h4>')
+        .replace(/^## (.*$)/gm, '<h3>$1</h3>')
+        .replace(/^# (.*$)/gm, '<h2>$1</h2>')
+        // Bullet points with • or -
+        .replace(/^• (.*$)/gm, '<li>$1</li>')
+        .replace(/^- (.*$)/gm, '<li>$1</li>')
+        .replace(/^\* (.*$)/gm, '<li>$1</li>')
+        // Wrap consecutive list items in ul tags
+        .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+        // Line breaks and paragraphs
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+        .replace(/^(.*)$/, '<p>$1</p>')
+        // Clean up empty paragraphs
+        .replace(/<p><\/p>/g, '')
+        .replace(/<p><br><\/p>/g, '');
+}
+
+function showTypingIndicator() {
+    const chatMessages = document.getElementById('chatMessages');
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'chat-message bot-message typing-indicator';
+    typingDiv.id = 'typingIndicator';
+    
+    typingDiv.innerHTML = `
+        <div class="message-avatar">
+            <i class="fas fa-robot"></i>
+        </div>
+        <div class="typing-dots">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
+    `;
+    
+    chatMessages.appendChild(typingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    const typingIndicator = document.getElementById('typingIndicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
+}
+
+function sendQuickQuestion(question) {
+    const chatInput = document.getElementById('chatInput');
+    chatInput.value = question;
+    
+    // Trigger the chat form submission
+    const event = new Event('submit', { bubbles: true, cancelable: true });
+    chatForm.dispatchEvent(event);
+}
+
+function clearChat() {
+    const chatMessages = document.getElementById('chatMessages');
+    chatMessages.innerHTML = `
+        <div class="chat-message bot-message">
+            <div class="message-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="message-content">
+                <p><strong>Hello! I'm your AI healthcare inventory assistant.</strong></p>
+                <p>I provide quick, actionable advice about your clinic's inventory. Ask me about:</p>
+                <ul>
+                    <li>Current stock levels & alerts</li>
+                    <li>Reorder recommendations</li>
+                    <li>Usage patterns & optimization</li>
+                    <li>Specific item guidance</li>
+                </ul>
+                <p>💡 <em>I'll keep my answers short and focused on immediate actions.</em></p>
+            </div>
+        </div>
+    `;
+}
+
+// Automated Restock Functions
+async function showAutomatedRestockModal() {
+    console.log('🔧 showAutomatedRestockModal called');
+    try {
+        showLoading();
+        
+        console.log('📡 Calling automated-restock-preview API...');
+        // Get preview of what would be restocked
+        const preview = await apiCall('/automated-restock-preview');
+        
+        console.log('📊 Preview data received:', preview);
+        hideLoading();
+        
+        if (preview.totalItems === 0) {
+            showToast('No high priority items need restocking at this time! 🎉', 'info');
+            return;
+        }
+        
+        // Create modal if it doesn't exist
+        let modal = document.getElementById('automatedRestockModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'automatedRestockModal';
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2><i class="fas fa-magic"></i> Automated High Priority Restock</h2>
+                        <span class="close" onclick="closeAutomatedRestockModal()">&times;</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="restock-preview">
+                            <div class="preview-summary">
+                                <h3>Items to be automatically restocked:</h3>
+                                <div class="summary-stats">
+                                    <span class="stat"><strong>${preview.totalItems}</strong> high priority items</span>
+                                    <span class="stat"><strong>${preview.totalQuantity}</strong> total units</span>
+                                </div>
+                            </div>
+                            <div class="preview-items" id="automatedRestockItems">
+                                <!-- Items will be populated here -->
+                            </div>
+                            <div class="restock-warning">
+                                <i class="fas fa-info-circle"></i>
+                                <p>This will create an automated purchase order and immediately update your inventory levels. Only items at or below their minimum threshold will be restocked.</p>
+                            </div>
+                        </div>
+                        <div class="modal-actions">
+                            <button class="btn btn-secondary" onclick="closeAutomatedRestockModal()">Cancel</button>
+                            <button class="btn btn-success" onclick="executeAutomatedRestock()">
+                                <i class="fas fa-bolt"></i> Execute Automated Restock
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        
+        // Populate items list
+        const itemsContainer = modal.querySelector('#automatedRestockItems');
+        itemsContainer.innerHTML = preview.items.map(item => `
+            <div class="restock-item">
+                <div class="item-info">
+                    <span class="item-name">${item.itemName}</span>
+                    <span class="item-status">
+                        <span class="current-stock critical">Current: ${item.currentStock}</span>
+                        <span class="min-threshold">Min: ${item.minThreshold}</span>
+                        ${item.daysUntilEmpty !== null ? 
+                            `<span class="days-empty ${item.daysUntilEmpty <= 3 ? 'critical' : 'warning'}">
+                                ${item.daysUntilEmpty} days left
+                            </span>` : 
+                            '<span class="no-usage">No recent usage</span>'
+                        }
+                    </span>
+                </div>
+                <div class="restock-quantity">
+                    <i class="fas fa-arrow-right"></i>
+                    <span class="quantity">+${item.suggestedQuantity} units</span>
+                    <span class="new-total">= ${item.currentStock + item.suggestedQuantity} total</span>
+                </div>
+            </div>
+        `).join('');
+        
+        // Store preview data for execution
+        window.automatedRestockPreview = preview;
+        
+        modal.style.display = 'block';
+        
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Failed to load automated restock preview:', error);
+        showToast('Failed to load restock preview: ' + error.message, 'error');
+    }
+}
+
+function closeAutomatedRestockModal() {
+    const modal = document.getElementById('automatedRestockModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+async function executeAutomatedRestock() {
+    const confirmation = confirm(
+        `Are you sure you want to execute automated restock for ${window.automatedRestockPreview.totalItems} high priority items?\n\n` +
+        `This will:\n` +
+        `• Add ${window.automatedRestockPreview.totalQuantity} total units to inventory\n` +
+        `• Create an automated purchase order\n` +
+        `• Update stock levels immediately\n\n` +
+        `This action cannot be undone.`
+    );
+    
+    if (!confirmation) return;
+    
+    try {
+        showLoading();
+        
+        const result = await apiCall('/automated-restock', {
+            method: 'POST'
+        });
+        
+        if (result.success) {
+            const successMessage = `✅ Automated restock completed successfully!\n\n` +
+                `• ${result.itemsRestocked} items restocked\n` +
+                `• ${result.totalQuantity} total units added\n` +
+                `• Purchase order #${result.order.id.substr(-8)} created`;
+            
+            showToast(successMessage, 'success');
+            
+            // Refresh all relevant data
+            await Promise.all([
+                loadInventory(),
+                loadPurchaseOrders(),
+                loadRestockSuggestions(),
+                loadAlerts()
+            ]);
+            
+            closeAutomatedRestockModal();
+        } else {
+            showToast(result.message || 'No items were restocked', 'info');
+        }
+        
+        hideLoading();
+    } catch (error) {
+        hideLoading();
+        console.error('Failed to execute automated restock:', error);
+        showToast('Failed to execute automated restock', 'error');
+    }
+}
+
+// Make functions available globally
+window.showAutomatedRestockModal = showAutomatedRestockModal;
+window.closeAutomatedRestockModal = closeAutomatedRestockModal;
+window.executeAutomatedRestock = executeAutomatedRestock;

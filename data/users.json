@@ -1,0 +1,22 @@
+[
+  {
+    "id": "user_001",
+    "firstName": "John",
+    "lastName": "Pharmacist",
+    "email": "pharmacist@clinic.com",
+    "role": "pharmacist",
+    "password": "f908d6d05695ebab8485f4c78f2bb2718d41dcd17bbf005589ebb12925d32dc8",
+    "createdAt": "2025-08-08T00:46:59.174Z",
+    "isActive": true
+  },
+  {
+    "id": "user_002",
+    "firstName": "Admin",
+    "lastName": "User",
+    "email": "admin@clinic.com",
+    "role": "admin",
+    "password": "142d2b0694613ee324bb03fc9caf3eb2dbd82897cc5dd9056fe332b4f0030263",
+    "createdAt": "2025-08-08T00:46:59.178Z",
+    "isActive": true
+  }
+]

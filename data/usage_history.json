@@ -26,5 +26,68 @@
     "quantity": 2,
     "notes": "",
     "date": "2025-08-07T12:39:51.103Z"
+  },
+  {
+    "id": "me1kfb6d1tomn3ftdt7",
+    "itemId": "sample5",
+    "quantity": 4,
+    "notes": "",
+    "date": "2025-08-07T15:42:15.637Z"
+  },
+  {
+    "id": "usage_med002_1",
+    "itemId": "med002",
+    "quantity": 15,
+    "notes": "Pain relief prescriptions",
+    "date": "2025-08-07T09:00:00.000Z"
+  },
+  {
+    "id": "usage_med002_2",
+    "itemId": "med002",
+    "quantity": 12,
+    "notes": "Fever management",
+    "date": "2025-08-06T14:30:00.000Z"
+  },
+  {
+    "id": "usage_med002_3",
+    "itemId": "med002",
+    "quantity": 8,
+    "notes": "General pain relief",
+    "date": "2025-08-05T11:15:00.000Z"
+  },
+  {
+    "id": "usage_med002_4",
+    "itemId": "med002",
+    "quantity": 20,
+    "notes": "Bulk prescription",
+    "date": "2025-08-04T16:45:00.000Z"
+  },
+  {
+    "id": "usage_med002_5",
+    "itemId": "med002",
+    "quantity": 10,
+    "notes": "Patient treatment",
+    "date": "2025-08-03T13:20:00.000Z"
+  },
+  {
+    "id": "me1xlsvjpfa2d9khi3",
+    "itemId": "med002",
+    "quantity": 3,
+    "notes": "",
+    "date": "2025-08-07T21:51:13.519Z"
+  },
+  {
+    "id": "me1xm2jlcx1gfcc11no",
+    "itemId": "med002",
+    "quantity": 4,
+    "notes": "",
+    "date": "2025-08-07T21:51:26.049Z"
+  },
+  {
+    "id": "me1xqhvvgk24v7zf42i",
+    "itemId": "med009",
+    "quantity": 5,
+    "notes": "",
+    "date": "2025-08-07T21:54:52.555Z"
   }
 ]
