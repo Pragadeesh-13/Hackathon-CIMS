@@ -8,21 +8,17 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Initialize Gemini AI
 const genAI = new GoogleGenerativeAI([ENTER YOUR GEMINI API KEY]);
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Data file paths
 const INVENTORY_FILE = path.join(__dirname, 'data', 'inventory.json');
 const USAGE_FILE = path.join(__dirname, 'data', 'usage_history.json');
 const PURCHASE_ORDERS_FILE = path.join(__dirname, 'data', 'purchase_orders.json');
 const USERS_FILE = path.join(__dirname, 'data', 'users.json');
 
-// Authentication helper functions (defined early for use in initialization)
 function hashPassword(password) {
     const salt = 'clinic_inventory_salt_2025';
     return crypto.createHash('sha256').update(password + salt).digest('hex');
@@ -34,7 +30,6 @@ function generateAuthToken(userId) {
     return crypto.createHash('sha256').update(tokenData).digest('hex');
 }
 
-// Initialize data files if they don't exist
 async function initializeDataFiles() {
     try {
         await fs.access(INVENTORY_FILE);
@@ -57,7 +52,6 @@ async function initializeDataFiles() {
     try {
         await fs.access(USERS_FILE);
     } catch {
-        // Create demo users
         const demoUsers = [
             {
                 id: "user_001",
@@ -84,7 +78,6 @@ async function initializeDataFiles() {
     }
 }
 
-// Helper functions
 async function readJsonFile(filePath) {
     try {
         const data = await fs.readFile(filePath, 'utf8');
@@ -109,9 +102,7 @@ async function validateAuthToken(token) {
     
     try {
         const users = await readJsonFile(USERS_FILE);
-        // For simplicity, we'll validate based on token format
-        // In production, you'd want to store tokens and check expiration
-        if (token.length === 64) { // SHA-256 hash length
+        if (token.length === 64) { 
             return true;
         }
         return false;
@@ -141,13 +132,10 @@ function calculateUsageRate(usageHistory, itemId, days = 30) {
     );
 
     const totalUsed = recentUsage.reduce((sum, usage) => sum + usage.quantity, 0);
-    return totalUsed / days; // Daily usage rate
+    return totalUsed / days; 
 }
 
-// Routes
 
-// Authentication Routes
-// Login endpoint
 app.post('/api/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -165,7 +153,6 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        // Check if user role is allowed (only pharmacist and admin)
         if (!['pharmacist', 'admin'].includes(user.role)) {
             return res.status(403).json({ message: 'Access denied. Only pharmacists and administrators are allowed.' });
         }
@@ -190,7 +177,6 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-// Register endpoint
 app.post('/api/register', async (req, res) => {
     try {
         const { firstName, lastName, email, role, password } = req.body;
@@ -199,14 +185,12 @@ app.post('/api/register', async (req, res) => {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
-        // Validate role (only allow pharmacist and admin)
         if (!['pharmacist', 'admin'].includes(role)) {
             return res.status(400).json({ message: 'Invalid role. Only pharmacist and admin roles are allowed.' });
         }
 
         const users = await readJsonFile(USERS_FILE);
         
-        // Check if user already exists
         if (users.find(u => u.email === email)) {
             return res.status(409).json({ message: 'User with this email already exists' });
         }
@@ -242,12 +226,10 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// Logout endpoint (client-side handles token removal)
 app.post('/api/logout', (req, res) => {
     res.json({ success: true, message: 'Logout successful' });
 });
 
-// Get user profile
 app.get('/api/profile', async (req, res) => {
     try {
         const token = req.headers.authorization?.replace('Bearer ', '');
@@ -256,8 +238,6 @@ app.get('/api/profile', async (req, res) => {
             return res.status(401).json({ message: 'Invalid or expired token' });
         }
 
-        // For simplicity, return success if token is valid
-        // In production, you'd decode the token to get user info
         res.json({
             success: true,
             message: 'Profile retrieved successfully'
@@ -268,8 +248,6 @@ app.get('/api/profile', async (req, res) => {
     }
 });
 
-// Inventory Routes
-// Get all inventory items
 app.get('/api/inventory', async (req, res) => {
     try {
         const inventory = await readJsonFile(INVENTORY_FILE);
@@ -279,7 +257,6 @@ app.get('/api/inventory', async (req, res) => {
     }
 });
 
-// Add new inventory item
 app.post('/api/inventory', async (req, res) => {
     try {
         const inventory = await readJsonFile(INVENTORY_FILE);
@@ -298,7 +275,6 @@ app.post('/api/inventory', async (req, res) => {
     }
 });
 
-// Update inventory item
 app.put('/api/inventory/:id', async (req, res) => {
     try {
         const inventory = await readJsonFile(INVENTORY_FILE);
@@ -321,7 +297,6 @@ app.put('/api/inventory/:id', async (req, res) => {
     }
 });
 
-// Delete inventory item
 app.delete('/api/inventory/:id', async (req, res) => {
     try {
         const inventory = await readJsonFile(INVENTORY_FILE);
@@ -338,12 +313,10 @@ app.delete('/api/inventory/:id', async (req, res) => {
     }
 });
 
-// Record usage
 app.post('/api/usage', async (req, res) => {
     try {
         const { itemId, quantity, notes } = req.body;
         
-        // Update inventory quantity
         const inventory = await readJsonFile(INVENTORY_FILE);
         const itemIndex = inventory.findIndex(item => item.id === itemId);
         
@@ -359,7 +332,6 @@ app.post('/api/usage', async (req, res) => {
         inventory[itemIndex].updatedAt = new Date().toISOString();
         await writeJsonFile(INVENTORY_FILE, inventory);
         
-        // Record usage history
         const usageHistory = await readJsonFile(USAGE_FILE);
         const usageRecord = {
             id: generateId(),
@@ -378,14 +350,12 @@ app.post('/api/usage', async (req, res) => {
     }
 });
 
-// Get alerts (low stock and expiring items)
 app.get('/api/alerts', async (req, res) => {
     try {
         const inventory = await readJsonFile(INVENTORY_FILE);
         const alerts = [];
         
         inventory.forEach(item => {
-            // Low stock alert
             if (item.currentStock <= item.minThreshold) {
                 alerts.push({
                     type: 'low_stock',
@@ -396,7 +366,6 @@ app.get('/api/alerts', async (req, res) => {
                 });
             }
             
-            // Expiration alert
             if (item.expirationDate) {
                 if (isExpiringWithinDays(item.expirationDate, 7)) {
                     const daysToExpiry = Math.ceil((new Date(item.expirationDate) - new Date()) / (1000 * 60 * 60 * 24));
@@ -417,7 +386,6 @@ app.get('/api/alerts', async (req, res) => {
     }
 });
 
-// Get restock suggestions
 app.get('/api/restock-suggestions', async (req, res) => {
     try {
         const inventory = await readJsonFile(INVENTORY_FILE);
@@ -443,15 +411,13 @@ app.get('/api/restock-suggestions', async (req, res) => {
             }
         });
         
-        // Sort by priority and days until empty
         suggestions.sort((a, b) => {
             if (a.priority === 'high' && b.priority !== 'high') return -1;
             if (b.priority === 'high' && a.priority !== 'high') return 1;
             
-            // Handle null values (when usage rate is 0)
             if (a.daysUntilEmpty === null && b.daysUntilEmpty === null) return 0;
-            if (a.daysUntilEmpty === null) return 1; // null goes to end
-            if (b.daysUntilEmpty === null) return -1; // null goes to end
+            if (a.daysUntilEmpty === null) return 1; 
+            if (b.daysUntilEmpty === null) return -1; 
             
             return a.daysUntilEmpty - b.daysUntilEmpty;
         });
@@ -462,20 +428,18 @@ app.get('/api/restock-suggestions', async (req, res) => {
     }
 });
 
-// Generate restock chart with AI insights
 app.get('/api/restock-chart', async (req, res) => {
     try {
         const inventory = await readJsonFile(INVENTORY_FILE);
         const usageHistory = await readJsonFile(USAGE_FILE);
         const suggestions = [];
         
-        // Get restock suggestions data
         inventory.forEach(item => {
             const usageRate = calculateUsageRate(usageHistory, item.id);
             
             if (item.currentStock <= item.minThreshold || usageRate > 0) {
                 const daysUntilEmpty = usageRate > 0 ? item.currentStock / usageRate : null;
-                const suggestedQuantity = Math.ceil(usageRate * 30); // 30 days supply
+                const suggestedQuantity = Math.ceil(usageRate * 30); 
                 
                 suggestions.push({
                     itemId: item.id,
@@ -489,20 +453,17 @@ app.get('/api/restock-chart', async (req, res) => {
             }
         });
 
-        // Sort by priority and days until empty
         suggestions.sort((a, b) => {
             if (a.priority === 'high' && b.priority !== 'high') return -1;
             if (b.priority === 'high' && a.priority !== 'high') return 1;
             
-            // Handle null values (when usage rate is 0)
             if (a.daysUntilEmpty === null && b.daysUntilEmpty === null) return 0;
-            if (a.daysUntilEmpty === null) return 1; // null goes to end
-            if (b.daysUntilEmpty === null) return -1; // null goes to end
+            if (a.daysUntilEmpty === null) return 1; 
+            if (b.daysUntilEmpty === null) return -1; 
             
             return a.daysUntilEmpty - b.daysUntilEmpty;
         });
 
-        // Generate AI insights
         const prompt = `Analyze the following clinic inventory restock data and provide insights:
 
 ${suggestions.map(item => `- ${item.itemName}: Current Stock: ${item.currentStock}, Selling Rate: ${item.usageRate}/day, Days Until Empty: ${item.daysUntilEmpty || 'N/A'}, Suggested Quantity: ${item.suggestedQuantity}, Priority: ${item.priority}`).join('\n')}
@@ -547,7 +508,6 @@ Keep the response concise and actionable for a clinic manager.`;
     }
 });
 
-// Get automated restock preview (high priority items only)
 app.get('/api/automated-restock-preview', async (req, res) => {
     try {
         const inventory = await readJsonFile(INVENTORY_FILE);
@@ -557,7 +517,6 @@ app.get('/api/automated-restock-preview', async (req, res) => {
         inventory.forEach(item => {
             const usageRate = calculateUsageRate(usageHistory, item.id);
             
-            // Only include high priority items (current stock <= min threshold)
             if (item.currentStock <= item.minThreshold) {
                 const daysUntilEmpty = usageRate > 0 ? item.currentStock / usageRate : null;
                 const suggestedQuantity = Math.ceil(usageRate * 30); // 30 days supply
@@ -575,7 +534,6 @@ app.get('/api/automated-restock-preview', async (req, res) => {
             }
         });
         
-        // Sort by urgency (days until empty, then by current stock percentage)
         highPriorityItems.sort((a, b) => {
             if (a.daysUntilEmpty === null && b.daysUntilEmpty === null) {
                 return (a.currentStock / a.minThreshold) - (b.currentStock / b.minThreshold);
@@ -595,7 +553,6 @@ app.get('/api/automated-restock-preview', async (req, res) => {
     }
 });
 
-// Execute automated restock (high priority items only)
 app.post('/api/automated-restock', async (req, res) => {
     try {
         const inventory = await readJsonFile(INVENTORY_FILE);
@@ -606,9 +563,8 @@ app.post('/api/automated-restock', async (req, res) => {
         inventory.forEach(item => {
             const usageRate = calculateUsageRate(usageHistory, item.id);
             
-            // Only include high priority items (current stock <= min threshold)
             if (item.currentStock <= item.minThreshold) {
-                const suggestedQuantity = Math.ceil(usageRate * 30); // 30 days supply
+                const suggestedQuantity = Math.ceil(usageRate * 30); 
                 
                 highPriorityItems.push({
                     name: item.name,
@@ -625,7 +581,6 @@ app.post('/api/automated-restock', async (req, res) => {
             });
         }
         
-        // Create automated purchase order
         const newOrder = {
             id: generateId(),
             supplier: 'Automated Restock System',
@@ -636,13 +591,11 @@ app.post('/api/automated-restock', async (req, res) => {
             updatedAt: new Date().toISOString()
         };
         
-        // Update inventory quantities for ordered items
         let updatedItems = 0;
         highPriorityItems.forEach(orderedItem => {
             const inventoryIndex = inventory.findIndex(item => item.id === orderedItem.itemId);
             
             if (inventoryIndex !== -1) {
-                // Add the ordered quantity to current stock
                 inventory[inventoryIndex].currentStock += parseInt(orderedItem.quantity) || 0;
                 inventory[inventoryIndex].updatedAt = new Date().toISOString();
                 updatedItems++;
@@ -651,10 +604,8 @@ app.post('/api/automated-restock', async (req, res) => {
             }
         });
         
-        // Save updated inventory
         await writeJsonFile(INVENTORY_FILE, inventory);
         
-        // Save purchase order
         purchaseOrders.push(newOrder);
         await writeJsonFile(PURCHASE_ORDERS_FILE, purchaseOrders);
 
@@ -671,7 +622,6 @@ app.post('/api/automated-restock', async (req, res) => {
     }
 });
 
-// Create purchase order
 app.post('/api/purchase-orders', async (req, res) => {
     try {
         const purchaseOrders = await readJsonFile(PURCHASE_ORDERS_FILE);
@@ -685,7 +635,6 @@ app.post('/api/purchase-orders', async (req, res) => {
             updatedAt: new Date().toISOString()
         };
         
-        // Update inventory quantities for ordered items
         if (newOrder.items && Array.isArray(newOrder.items)) {
             let updatedItems = 0;
             
@@ -693,7 +642,6 @@ app.post('/api/purchase-orders', async (req, res) => {
                 const inventoryIndex = inventory.findIndex(item => item.id === orderedItem.itemId);
                 
                 if (inventoryIndex !== -1) {
-                    // Add the ordered quantity to current stock
                     inventory[inventoryIndex].currentStock += parseInt(orderedItem.quantity) || 0;
                     inventory[inventoryIndex].updatedAt = new Date().toISOString();
                     updatedItems++;
@@ -702,7 +650,6 @@ app.post('/api/purchase-orders', async (req, res) => {
                 }
             });
             
-            // Save updated inventory
             if (updatedItems > 0) {
                 await writeJsonFile(INVENTORY_FILE, inventory);
                 console.log(`Inventory updated for ${updatedItems} items from purchase order ${newOrder.id}`);
@@ -720,7 +667,6 @@ app.post('/api/purchase-orders', async (req, res) => {
     }
 });
 
-// Get purchase orders
 app.get('/api/purchase-orders', async (req, res) => {
     try {
         const purchaseOrders = await readJsonFile(PURCHASE_ORDERS_FILE);
@@ -730,7 +676,6 @@ app.get('/api/purchase-orders', async (req, res) => {
     }
 });
 
-// Get single purchase order
 app.get('/api/purchase-orders/:id', async (req, res) => {
     try {
         const purchaseOrders = await readJsonFile(PURCHASE_ORDERS_FILE);
@@ -746,7 +691,6 @@ app.get('/api/purchase-orders/:id', async (req, res) => {
     }
 });
 
-// Update purchase order status
 app.put('/api/purchase-orders/:id', async (req, res) => {
     try {
         const purchaseOrders = await readJsonFile(PURCHASE_ORDERS_FILE);
@@ -770,7 +714,6 @@ app.put('/api/purchase-orders/:id', async (req, res) => {
     }
 });
 
-// Simulate barcode scanning
 app.post('/api/scan-barcode', async (req, res) => {
     try {
         const { barcode } = req.body;
@@ -788,13 +731,11 @@ app.post('/api/scan-barcode', async (req, res) => {
     }
 });
 
-// Get usage history
 app.get('/api/usage-history', async (req, res) => {
     try {
         const usageHistory = await readJsonFile(USAGE_FILE);
         const inventory = await readJsonFile(INVENTORY_FILE);
         
-        // Enrich usage history with item names
         const enrichedHistory = usageHistory.map(usage => {
             const item = inventory.find(item => item.id === usage.itemId);
             return {
@@ -809,7 +750,6 @@ app.get('/api/usage-history', async (req, res) => {
     }
 });
 
-// Chatbot endpoint
 app.post('/api/chat', async (req, res) => {
     try {
         const { message, context } = req.body;
@@ -818,12 +758,10 @@ app.post('/api/chat', async (req, res) => {
             return res.status(400).json({ error: 'Message is required' });
         }
 
-        // Get current data from JSON files
         const inventory = await readJsonFile(INVENTORY_FILE);
         const usageHistory = await readJsonFile(USAGE_FILE);
         const purchaseOrders = await readJsonFile(PURCHASE_ORDERS_FILE);
 
-        // Enrich usage history with item names
         const enrichedUsageHistory = usageHistory.map(usage => {
             const item = inventory.find(item => item.id === usage.itemId);
             return {
@@ -833,10 +771,8 @@ app.post('/api/chat', async (req, res) => {
             };
         });
 
-        // Calculate current alerts
         const alerts = [];
         inventory.forEach(item => {
-            // Low stock alert
             if (item.currentStock <= item.minThreshold) {
                 alerts.push({
                     type: 'low_stock',
@@ -848,7 +784,6 @@ app.post('/api/chat', async (req, res) => {
                 });
             }
             
-            // Expiration alert
             if (item.expirationDate) {
                 const daysToExpiry = Math.ceil((new Date(item.expirationDate) - new Date()) / (1000 * 60 * 60 * 24));
                 if (daysToExpiry <= 7 && daysToExpiry >= 0) {
@@ -864,10 +799,8 @@ app.post('/api/chat', async (req, res) => {
             }
         });
 
-        // Get the generative model
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-        // Create a comprehensive system prompt with actual data
         const systemPrompt = `You are an AI assistant for healthcare inventory management. Provide **CONCISE, DIRECT** answers.
 
 ## **CURRENT INVENTORY DATA:**
@@ -906,7 +839,6 @@ ${alerts.length > 0 ? alerts.map(alert =>
 
 **User question:** ${message}`;
 
-        // Generate response
         const result = await model.generateContent(systemPrompt);
         const response = await result.response;
         const botReply = response.text();
@@ -925,17 +857,14 @@ ${alerts.length > 0 ? alerts.map(alert =>
     }
 });
 
-// Serve authentication page
 app.get('/auth.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'auth.html'));
 });
 
-// Root route - serve main application
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Initialize data files and start server
 initializeDataFiles().then(() => {
     app.listen(PORT, () => {
         console.log(`🏥 Clinic Inventory Management System running on http://localhost:${PORT}`);
