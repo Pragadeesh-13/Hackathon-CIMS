@@ -1,26 +1,21 @@
-// Auth Page JavaScript
 document.addEventListener('DOMContentLoaded', function() {
     const tabButtons = document.querySelectorAll('.tab-btn');
     const authForms = document.querySelectorAll('.auth-form');
     const loginForm = document.getElementById('loginForm');
     const signupForm = document.getElementById('signupForm');
 
-    // Tab switching functionality
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             const tabName = button.getAttribute('data-tab');
             
-            // Update active tab
             tabButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
             
-            // Update active form
             authForms.forEach(form => form.classList.remove('active'));
             document.getElementById(tabName + 'Form').classList.add('active');
         });
     });
 
-    // Login form submission
     loginForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         
@@ -61,7 +56,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Signup form submission
     signupForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         
@@ -69,7 +63,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const password = formData.get('password');
         const confirmPassword = formData.get('confirmPassword');
 
-        // Password confirmation check
         if (password !== confirmPassword) {
             showToast('Passwords do not match', 'error');
             return;
@@ -98,11 +91,8 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (response.ok) {
                 showToast('Account created successfully! You can now login.', 'success');
-                // Switch to login tab
                 tabButtons[0].click();
-                // Pre-fill email
                 document.getElementById('loginEmail').value = signupData.email;
-                // Clear form
                 this.reset();
             } else {
                 showToast(result.message || 'Registration failed', 'error');
@@ -115,7 +105,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Demo credential buttons
     document.addEventListener('click', function(e) {
         if (e.target.closest('.demo-account')) {
             const demoText = e.target.closest('.demo-account').textContent;
@@ -129,13 +118,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Check if already logged in
     if (localStorage.getItem('authToken')) {
         window.location.href = '/';
     }
 });
 
-// Utility functions
 function showLoading(button) {
     button.disabled = true;
     const originalText = button.innerHTML;
@@ -149,7 +136,6 @@ function hideLoading(button) {
 }
 
 function showToast(message, type = 'info') {
-    // Remove existing toast
     const existingToast = document.querySelector('.toast');
     if (existingToast) {
         existingToast.remove();
@@ -161,17 +147,14 @@ function showToast(message, type = 'info') {
     
     document.body.appendChild(toast);
     
-    // Show toast
     setTimeout(() => toast.classList.add('show'), 100);
     
-    // Hide toast
     setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
     }, 4000);
 }
 
-// Form validation
 function validateEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -180,7 +163,6 @@ function validatePassword(password) {
     return password.length >= 6;
 }
 
-// Real-time validation
 document.addEventListener('input', function(e) {
     if (e.target.type === 'email') {
         const isValid = validateEmail(e.target.value);
