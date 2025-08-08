@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Clinic Inventory Management System</title>
-    <!-- Google Fonts - Poppins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet">
@@ -14,7 +13,6 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- Header -->
         <header class="header">
             <div class="header-content">
                 <div class="logo">
@@ -30,7 +28,6 @@
             </div>
         </header>
 
-        <!-- Navigation -->
         <nav class="nav-tabs">
             <button class="tab-btn active" data-tab="dashboard">
                 <i class="fas fa-tachometer-alt"></i> Dashboard
@@ -55,9 +52,7 @@
             </button>
         </nav>
 
-        <!-- Main Content -->
         <main class="main-content">
-            <!-- Dashboard Tab -->
             <div class="tab-content active" id="dashboard">
                 <div class="dashboard-grid">
                     <div class="stat-card">
@@ -126,7 +121,6 @@
                 </div>
             </div>
 
-            <!-- Inventory Tab -->
             <div class="tab-content" id="inventory">
                 <div class="section-header">
                     <h2>Inventory Management</h2>
@@ -159,7 +153,6 @@
                 </div>
             </div>
 
-            <!-- Alerts Tab -->
             <div class="tab-content" id="alerts">
                 <div class="section-header">
                     <h2>System Alerts</h2>
@@ -172,7 +165,6 @@
                 </div>
             </div>
 
-            <!-- Restock Tab -->
             <div class="tab-content" id="restock">
                 <div class="section-header">
                     <h2>Restock Suggestions</h2>
@@ -186,7 +178,6 @@
                     </div>
                 </div>
 
-                <!-- Bar Chart Section -->
                 <div class="section">
                     <h3>Restock Analysis Chart</h3>
                     <div class="chart-container" style="display: none;" id="restockChartContainer">
@@ -208,7 +199,6 @@
                 </div>
             </div>
 
-            <!-- Usage Tab -->
             <div class="tab-content" id="usage">
                 <div class="section-header">
                     <h2>Usage Tracking</h2>
@@ -235,7 +225,6 @@
                 </div>
             </div>
 
-            <!-- Scanner Tab -->
             <div class="tab-content" id="scanner">
                 <div class="section-header">
                     <h2>Barcode Scanner</h2>
@@ -265,7 +254,6 @@
                 </div>
             </div>
 
-            <!-- Chatbot Tab -->
             <div class="tab-content" id="chatbot">
                 <div class="section-header">
                     <h2>AI Healthcare Assistant</h2>
@@ -322,7 +310,6 @@
         </main>
     </div>
 
-    <!-- Add Item Modal -->
     <div class="modal" id="addItemModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -398,13 +385,11 @@
         </div>
     </div>
 
-    <!-- Loading Indicator -->
     <div class="loading" id="loading">
         <div class="spinner"></div>
         <p>Loading...</p>
     </div>
 
-    <!-- Toast Notifications -->
     <div id="toastContainer" class="toast-container"></div>
 
     <script src="js/app.js"></script>
