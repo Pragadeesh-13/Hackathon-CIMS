@@ -9,7 +9,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Initialize Gemini AI
-const genAI = new GoogleGenerativeAI('AIzaSyDAlgnjMS54hi0S1zbbhScRi5BYZZ1dLVU');
+const genAI = new GoogleGenerativeAI([ENTER YOUR GEMINI API KEY]);
 
 // Middleware
 app.use(cors());
